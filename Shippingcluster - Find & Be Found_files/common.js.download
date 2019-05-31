@@ -1,0 +1,634 @@
+// All the common js functions for shippingcluster project will go here
+var URLPattern = /(http|https|ftp|ftps)\:\/\/[a-zA-Z0-9\-\.]+\.[a-zA-Z]{2,3}(\/\S*)?/i;
+function validateEmptyField(fieldList){
+
+  if (!fieldList) return false;
+  var empty_flag = false;
+  $.each(fieldList, function(key, field)
+  {
+     var fieldObj = $('#'+field);
+     showGrayBorder(fieldObj);
+     if(!fieldObj.val())
+     {
+        !empty_flag ? fieldObj.focus() : '';
+        showRedBorder(fieldObj);
+        empty_flag = true;
+     }
+  });
+
+  return (empty_flag) ? true : false;
+}
+
+function checkEmptyField(fieldList){
+
+  if (!fieldList) return false;
+  var empty_flag = false;
+  $.each(fieldList, function(key, field)
+  {
+     var fieldObj = $('.'+field);
+     showGrayBorder(fieldObj);
+
+     if(fieldObj.attr('type') == 'checkbox') {
+        showNoOutline(fieldObj);
+        if(!fieldObj.is(':checked')) {
+           showRedOutline(fieldObj);
+           empty_flag = true;
+        }
+     }
+     else if(!fieldObj.val())
+     {
+       !empty_flag ? fieldObj.focus() : '';
+       showRedBorder(fieldObj);
+       empty_flag = true;
+     }
+  });
+
+  return (empty_flag) ? true : false;
+}
+
+function validateEmail(email){
+    email = email.toLowerCase();
+    var regex = /^[_a-z0-9-]+(\.[_a-z0-9-]+)*@[a-z0-9-]+(\.[a-z0-9-]+)*(\.[a-z]{2,4})$/;
+    return regex.test(email.trim());
+}
+
+function showRedBorder(obj){
+   obj.css('border', '1px solid #ff0000');
+}
+
+function showRedOutline(obj){
+   obj.css('outline', '1px solid #ff0000');
+}
+
+function showNoOutline(obj){
+   obj.css('outline', 'none');
+}
+
+function showGrayBorder(obj){
+   obj.css('border', '1px solid #cccccc');
+}
+
+function showErrorMessage(obj, msg){
+   showRedBorder(obj);
+   obj.show().html(msg).fadeOut(10000);
+}
+
+function showNotification(msg){
+  $('.notification_msg').html(msg);
+  $('.notification_bar').show();
+}
+
+function disableForm(obj){
+  var limit = obj.elements.length;
+  for (i=0;i<limit;i++) {
+    obj.elements[i].disabled = true;
+  }
+}
+
+function isEmailExists(email){
+   var exist_flag = false;
+   $.ajax({
+      url: '/signup/checkemail',
+      type: 'post',
+      data: {"email" : $.trim(email)},
+      dataType: 'json',
+      async: false,
+      success: function(response)
+      {
+         exist_flag = (response.success) ? true : false;
+      }
+    });
+    return (exist_flag) ? true : false;
+}
+
+function doAutocomplete(obj, url){
+   obj.autocomplete({
+         minLength: 2,
+         source: url,
+         select: function( event, ui ){
+            isAutocompleData = true;
+            obj.val(ui.item.value);
+            $('#search_form').submit();
+         }
+    });
+}
+
+function doFormattedAutocomplete(obj, url){
+  obj.autocomplete({
+    minLength: 2,
+    source: function (request, response) {
+    $.ajax({
+        url: url,
+        dataType: "json",
+        data: {term: request.term, section :$('.sectionName').val()},
+        success: function (data) {
+          response($.map(data, function (item) {
+            return {
+              label: __highlight(item.label, request.term),
+              value: item.value,
+              data : item.data,
+              icon : item.icon
+            };
+          }));
+        }
+      });
+    },
+    select: function( event, ui ){
+      if(ui.item.value){
+        isAutocompleData = true;
+        obj.val(ui.item.value);
+        obj.siblings('.autocomplete_data').val(JSON.stringify(ui.item.data));
+        obj.siblings('.queryStrType').val(ui.item.data.itemType);
+        this.form.submit();
+      }
+    }
+  }).data("ui-autocomplete")._renderItem = function( ul, item ) {
+      return $("<li class='ui-menu-item'></li>")
+          .data( "item.autocomplete", item )
+          .append(item.value ? '<a><img class="max_image_size" src="' + item.icon + '" class="autocomplete_icon"> ' + item.label + '</a>': item.label)
+          .appendTo(ul);
+  };
+}
+
+function __highlight(s, t) {
+  var matcher = new RegExp("("+$.ui.autocomplete.escapeRegex(t)+")", "ig" );
+  return s.replace(matcher, "<span style='background-color:yellow'>$1</span>");
+}
+
+function showSuggestion(obj, formSubmit){
+   if (navigator.geolocation) {
+      autocomplete = new google.maps.places.Autocomplete(obj,{ types: ['geocode'] });
+      navigator.geolocation.getCurrentPosition(function(position) {
+      var geolocation = new google.maps.LatLng(position.coords.latitude, position.coords.longitude);
+          autocomplete.setBounds(new google.maps.LatLngBounds(geolocation, geolocation));
+     });
+   }
+
+   if(formSubmit) {
+     google.maps.event.addListener(autocomplete, 'place_changed', function() {
+       $('.location').closest('form') .submit();
+     });
+   }
+}
+
+function stripHTML(html){
+   var tmp = document.createElement("DIV");
+   tmp.innerHTML = html;
+   return tmp.textContent || tmp.innerText || "";
+}
+
+function doSearch(keyword){
+   $('#keyword').val(keyword);
+   $('#search_form').submit();
+}
+
+function doReverseSearch(keyword){
+   $('#rk').val(keyword);
+   $('#search_form').submit();
+}
+
+function validateSearch(){
+  var fields = new Array('keyword');
+  if(fieldLengthCheck(fields)) return false;
+  if (!$('#keyword').val() && !$('#rk').val()) return false;
+  return true;
+}
+
+/* js for keyword management starts*/
+function makeCamelCase(str) {
+  return str.toLowerCase().replace(/\b[a-z]/g, function(letter) {return letter.toUpperCase();});
+}
+
+function showRemoveIcon (obj) {
+  // obj.find('img').show();
+}
+
+function hideRemoveIcon (obj) {
+  // obj.find('img').hide();
+}
+
+function removeKeyword (obj) {
+  var tag = obj.parent().prev().find('.position-tag-element').text();
+  var pos = $.inArray(tag, keywordArr)
+  if (pos > -1) {keywordArr.splice(pos, 1);}
+  obj.parent().parent().remove();
+  setTagValue()
+}
+
+function setTagValue()
+{
+  var tagStr = keywordArr.join('##');
+  $('#keywords').val(tagStr);
+}
+/* js for keyword management ends*/
+
+function doUpload(obj, size, aspectRatio, filenameObj){
+  containerObj     = filenameObj.parents('.upload_section_container');
+  desiredSize      = size;
+  uploadedFileObj  = filenameObj;
+  ratioValue       = (aspectRatio) ? aspectRatio : 0;
+
+  obj.fileupload({
+    url     : '/upload',
+    formData: {'aspect_ratio' : ratioValue},
+    dataType: 'json',
+    add: function(e, data){
+      containerObj.find('.photo_preloader').html('<img src="/images/preloader.gif">');
+      data.submit();
+    },
+    done: function (e, data)
+    {
+      containerObj.find('.photo_preloader').html('');
+      if(data.result.success){
+        openLightbox(data.result);
+      }
+      else{
+        alert(data.result.msg);
+        return false;
+      }
+      $('input:submit').attr('disabled', false);
+    },
+    progress: function (e, data){
+      $('input:submit').attr('disabled', true);
+    }
+   }).prop('disabled', !$.support.fileInput)
+      .parent().addClass($.support.fileInput ? undefined : 'disabled');
+}
+
+function saveCroppedPhoto(imageSrc){
+  var imageData = {"imageSrc" : imageSrc, "filename" : $('.crop_filename').val(),
+                   "filetype" : $('.crop_filetype').val(), "ratio" : ratioValue};
+  var minusIcon = uploadedFileObj.siblings('.is_minus_icon').val() ? 1 : 0;
+
+  $.ajax({
+    url: '/savephoto',
+    type: 'post',
+    data: imageData,
+    dataType: 'json',
+    async: false,
+    success: function(response){
+      if(response.success) {
+        var minusHTML = '';
+        if(minusIcon){
+          minusHTML = '<img src="/images/green_minus_icon.png" class="top_right_icon" onclick="removeUploadedImage($(this));">';
+          uploadedFileObj.parent('.fileinput-button').hide();
+        }
+        var photoUrl  = response[desiredSize + 'Url'];
+        var photoHTML = '<img src="'+imageSrc+'" class="img-responsive">'+minusHTML+'<div class="photo_preloader"></div>';
+        uploadedFileObj.val(response.name);
+        uploadedFileObj.siblings('.photo_url').val(photoUrl);
+        containerObj.find('.photo_container').html(photoHTML);
+        $('.uploadDialogContainer').dialog('close');
+      }
+      else{
+        alert(response.msg);
+        return false;
+      }
+    }
+  });
+}
+
+function showUnsavedWarning(event)
+{
+  var dataObj   = event.data;
+  if(dataObj.obj.serialize() != dataObj.origData){
+    if(!formSubmitted) return 'You have unsaved data on this page.';
+  }
+}
+
+function checkLength(obj, cnt){
+   var WARN_MSG   = 'Content length can not exceed ' + cnt + ' characters';
+   var contentLen = obj.val().length + obj.val().replace(/[^\n]/g, '').length;
+   (contentLen >= cnt) ? $('.short_description_warning').html(WARN_MSG) : $('.short_description_warning').html('');
+}
+
+function checkCurrenPositionLength(obj, cnt) {
+  var WARN_MSG = 'You can input 70 characters in this input field. You can describe your career in detail adding as many positions as required under "Add position".';
+  var contentLen = obj.val().length + obj.val().replace(/[^\n]/g, '').length;
+  (contentLen >= cnt) ? $('.current_position_warning').html(WARN_MSG) : $('.current_position_warning').html('');
+}
+
+function validateUrl(url){
+  return /^(https?|ftp):\/\/(((([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!\$&'\(\)\*\+,;=]|:)*@)?(((\d|[1-9]\d|1\d\d|2[0-4]\d|25[0-5])\.(\d|[1-9]\d|1\d\d|2[0-4]\d|25[0-5])\.(\d|[1-9]\d|1\d\d|2[0-4]\d|25[0-5])\.(\d|[1-9]\d|1\d\d|2[0-4]\d|25[0-5]))|((([a-z]|\d|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(([a-z]|\d|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])*([a-z]|\d|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])))\.)+(([a-z]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(([a-z]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])*([a-z]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])))\.?)(:\d*)?)(\/((([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!\$&'\(\)\*\+,;=]|:|@)+(\/(([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!\$&'\(\)\*\+,;=]|:|@)*)*)?)?(\?((([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!\$&'\(\)\*\+,;=]|:|@)|[\uE000-\uF8FF]|\/|\?)*)?(\#((([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!\$&'\(\)\*\+,;=]|:|@)|\/|\?)*)?$/i.test(url);
+}
+
+function doAutoSave(url, formObj, originalData){
+  var AUTOSAVE_INTERVAL = 2000;
+  var formData = formObj.serialize();
+
+  if (formData == originalData) {
+    setTimeout(function() {doAutoSave(url, formObj, originalData)}, AUTOSAVE_INTERVAL);
+    return false;
+  }
+
+  originalData = formData;
+  $.ajax({url: url, type: 'post', data: formData, dataType: 'json', async: false,
+    success: function(response){
+    },
+    complete: function() {
+      setTimeout(function() {doAutoSave(url, formObj, originalData)}, AUTOSAVE_INTERVAL);
+    }
+  });
+}
+
+//This function is used to check the empty search and minimum search length(2) for all listing page.
+function fieldLengthCheck(fieldList){
+   if (!fieldList) return false;
+   var empty_flag = false;
+   $.each(fieldList, function(key, field){
+      var fieldObj = $('#'+field);
+      if(fieldObj.val() && $.trim(fieldObj.val()).length <2)
+         empty_flag = true;
+   });
+   return (empty_flag) ? true : false;
+}
+
+//This function is used to update the message read or unread status
+function setMsgStatus(msgId, msgStatus, msgUid){
+    var respone_flag = false;
+    $.ajax({
+      url: '/message/changeMessageStatus',
+      type: 'post',
+      data: {"id" : msgId, "msgStatus" : msgStatus, "msgUid" : msgUid},
+      dataType: 'json',
+      async: false,
+      success: function(response){
+        respone_flag = (response.success) ? true : false;
+        if(response.removeCache)
+           $('.notification_link').remove();
+           $('.margin-message-link').removeClass();
+      }
+    });
+    return respone_flag;
+}
+
+function isIE () {
+  var myNav = navigator.userAgent.toLowerCase();
+  return (myNav.indexOf('msie') != -1) ? true : false;
+  // return (myNav.indexOf('msie') != -1) ? parseInt(myNav.split('msie')[1]) : false;
+}
+
+function changeFormActionAndSubmit(obj, url) {
+  obj.attr('action', url);
+  obj.submit();
+}
+
+// on window resize run function
+$(window).resize(function () {
+    fluidDialog();
+});
+
+function openLightbox(dataObj){
+  var elementObj = $('.uploadDialogContainer');
+  elementObj.html(dataObj.html);
+  var settings = elementObj.dialog({
+    dialogClass : 'upload_dialog',
+    autoOpen    : false,
+    maxWidth    : 700,
+    height      : 'auto',
+    fluid       : true,
+    modal       : true,
+    width       : '100%',
+    resizable   : false,
+    position    : ['middle', 200],
+    open: function(event, ui){
+      fluidDialog(); // needed when autoOpen is set to true in this codepen
+    }
+  });
+
+  settings.dialog("open");
+}
+
+function callOpenLightbox(contentUrl, dataStr){
+  $.ajax({
+     url : contentUrl,
+     type: 'post',
+     data: {"data" : dataStr},
+     dataType: 'json',
+     success: function(response){
+       openLightbox(response);
+     }
+  });
+}
+
+function fluidDialog()
+{
+  var $visible = $(".ui-dialog:visible");
+  // each open dialog
+  $visible.each(function () {
+    var $this = $(this);
+    var dialog = $this.find(".ui-dialog-content").data("ui-dialog");
+    // if fluid option == true
+    if (dialog.options.fluid) {
+      var wWidth = $(window).width();
+      // check window width against dialog width
+      if (wWidth < (parseInt(dialog.options.maxWidth) + 50))  {
+          // keep dialog from filling entire screen
+          $this.css("max-width", "90%");
+      } else {
+          // fix maxWidth bug
+          $this.css("max-width", dialog.options.maxWidth + "px");
+      }
+      //reposition dialog
+      dialog.option("position", dialog.options.position);
+    }
+  });
+}
+
+function locateScrollPosition(obj)
+{
+  var dest=0;
+
+  if($(obj).offset().top > $(document).height()-$(window).height()){
+    dest = $(document).height() - $(window).height();
+  }else{
+    dest = $(obj).offset().top;
+  }
+
+  $('html,body').animate({scrollTop:dest}, 1000,'swing');
+}
+
+function enableUploadSection(obj, element)
+{
+  obj.parents('.form-group').next('.adjust_width').removeClass('hidden');
+  obj.parents('.form-group').hide(100);
+  element.data("wysihtml5").editor.composer.element.focus();
+}
+
+function deleteSection(obj){
+  obj.parents('.section_container').find('input:not([type=file]), textarea, img').each(function(){
+    if($(this).prop('nodeName')  == 'IMG') {
+      $(this).attr('src', '');
+      $(this).parents('.upload_section_container').next('.form-group').addClass('hidden');
+    } else {
+      $(this).val('');
+    }
+  });
+  obj.parents('.form-group').prevAll('.first-child').find('.editor-element').data("wysihtml5").editor.setValue('');
+}
+
+function resizeTextarea(textareaObj) {
+  var offset = textareaObj.offsetHeight - textareaObj.clientHeight;
+  $(textareaObj).css('height', 'auto').css('height', textareaObj.scrollHeight + offset);
+}
+
+function loadTooltip(){
+  $('.wrap_text a, .wrap_text_large .keyword').each(function () {
+    if (this.scrollWidth > this.clientWidth) {
+      $(this).attr({"title": $(this).text(), "data-original-title" : $(this).text(), "data-toggle": "tooltip", "data-placement": 'auto', "data-html": "true"});
+    }else{
+      $(this).removeAttr("title data-original-title data-toggle data-placement data-html");
+    }
+  });
+
+  $('[data-toggle="tooltip"]').tooltip({
+    container: 'body'
+  });
+}
+
+function closeBar(obj) {
+   obj.parents('.header_bar').remove();
+}
+
+// One common ready function
+$(function(){
+ $('textarea.resizeable').on('keyup input', function(){resizeTextarea(this);});
+});
+
+function showMembers(obj)
+{
+  $(obj).autocomplete({
+    minLength: 2,
+    source: '/listing/getUserList',
+    focus: function(event, ui){
+      return false;
+    },
+    select: function(event, ui){
+      $(obj).val(ui.item.name);
+      $(obj).attr('user_id', ui.item.id);
+      $(obj).siblings('input').val(ui.item.id);
+      return false;
+    }
+  }).data("ui-autocomplete")._renderItem = function(ul, item) {
+      return $("<li />")
+        .data("item.autocomplete", item)
+        .append("<a><img class='img-responsvie' width='25px' src='" + item.icon + "' /><span class='left_margin_10'>" + item.name + "</span></a>")
+        .appendTo(ul);
+  };
+}
+
+function sendNotificationEmail(emailData){
+  if(!emailData) return false;
+  $.ajax({
+    url : '/listing/sendNotificationEmail', type : 'post', data : {'emailData' : emailData}, dataType : 'json',
+    success : function(response) {}
+  });
+}
+
+function callOpenDialog(shareUrl, itemId, shareType, section){
+  $.ajax({
+     url : '/listing/opendialog',
+     type: 'post',
+     data: {"share_url" : shareUrl, 'item_id' : itemId, 'share_type': shareType, 'section' : section},
+     dataType: 'json',
+     success: function(response){
+       openLightbox(response);
+      }
+  });
+}
+
+function disableClickShowTooltip(tagName, tooltipMessage)
+{
+  $(tagName).bind('click mouseover',function(e){
+    if(!$(this).hasClass('ignore_tooltip')){
+      e.preventDefault();
+      $(this).attr({"data-original-title" : tooltipMessage, "data-toggle": "tooltip", "data-placement": 'auto', "data-html": "true"});
+      loadTooltip();
+    }
+  });
+}
+
+// Validate complex block (education, experience)
+function validateBlock(fields, blockClass)
+{
+  var filledOne  = false;
+  var empty_flag = false;
+  var date_flag  = false;
+
+  var months = {January: '01', February: '02', March: '03', April: '04', May: '05', June: '06', July: '07',
+                August:'08', September:'09', October:'10', November:'11', December:'12'};
+
+  $('.'+blockClass).each(function()
+  {
+    filledOne          = false;
+    var blockObject    = $(this);
+    var currentWorkObj = blockObject.find('.current_work');
+    var currentSchoolObj = blockObject.find('.current_school');
+
+    $.each(fields, function(key, field)
+    {
+       if(blockObject.find('.'+field).val()) filledOne = true;
+    });
+
+    if (filledOne) {
+      $.each(fields, function(key, field)
+      {
+        if(currentWorkObj.is(':checked') && (field == 'job_end_month' || field == 'job_end_year')) return true;
+        if(currentSchoolObj.is(':checked') && (field == 'school_end_month' || field == 'school_end_year')) return true;
+        var fieldObj =  blockObject.find('.'+field);
+
+        showGrayBorder(fieldObj);
+        if(!fieldObj.val()){
+          showRedBorder(fieldObj);fieldObj.focus();
+          empty_flag = true;
+        }
+
+        if (field == 'job_start_month' && !currentWorkObj.is(':checked')) {
+          var jobStartDate = new Date(blockObject.find('.job_start_year').val(), months[blockObject.find('.job_start_month').val()]);
+          var jobEndDate   = new Date(blockObject.find('.job_end_year').val(), months[blockObject.find('.job_end_month').val()]);
+          if(jobStartDate > jobEndDate){
+            showRedBorder(fieldObj);
+            date_flag = true;
+            fieldObj.focus();
+          }
+        }
+
+        if (field == 'school_start_month' && !currentSchoolObj.is(':checked')) {
+          var schoolStartDate = new Date(blockObject.find('.school_start_year').val(), months[blockObject.find('.school_start_month').val()]);
+          var schoolEndDate   = new Date(blockObject.find('.school_end_year').val(), months[blockObject.find('.school_end_month').val()]);
+          if(schoolStartDate > schoolEndDate){
+            showRedBorder(fieldObj);fieldObj.focus();
+            date_flag = true;
+          }
+        }
+      });
+    };
+  });
+
+  if(empty_flag){
+    showNotification(EMPTY_MSG);$('.disabled_fields').show();$('.enabled_fields').hide();
+    return false;
+  }
+
+  if(date_flag) {
+    showNotification(DATE_MSG);$('.disabled_fields').show();$('.enabled_fields').hide();
+    return false;
+  }
+
+  return true;
+}
+
+function togglePresent(obj, blockClass)
+{
+  var blockObj = obj.parents('.'+blockClass);
+  if(obj.is(':checked')){
+    blockObj.find('.end_date_section').hide();
+    blockObj.find('.present_section').show();
+    obj.siblings().val(1);
+  }
+  else{
+    blockObj.find('.end_date_section').show();
+    blockObj.find('.present_section').hide();
+    obj.siblings().val(0);
+  }
+}
